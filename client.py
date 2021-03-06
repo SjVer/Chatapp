@@ -1,60 +1,99 @@
 #!/usr/bin/env python3
 
-import socket, select, errno
-import sys, time, os
+# importing n setting up n shit
+if True:
+	import socket, select, errno
+	import sys, time, os, os_signals
+	from threading import Thread
+	from signal import signal, SIGWINCH
+	from termcolor import colored
 
-#=====================
-#PORT = 8761
-#IP = '127.0.1.1'
-HEADER_LENGTH = 64
-FORMAT = 'utf-8'
-#=====================
+	#=====================
+	#PORT = 8761
+	#IP = '127.0.1.1'
+	HEADER_LENGTH = 64
+	FORMAT = 'utf-8'
+	EXITCOMMAND = 'quit'
+	#=====================
+
+	IP = input('Enter server IP: ')
+	PORT = int(input('Enter server port: '))
+
+	class win:
+		def __init__(self):
+			self.update()
+		def update(self):
+			self.x = os.get_terminal_size()[0]
+			self.y = os.get_terminal_size()[1]
+	win = win()
 
 # get started
-IP = input('Enter server IP: ')
-PORT = int(input('Enter server port: '))
+if True:
+	client_username = input('Enter username: ')
 
-client_username = input('Enter username: ')
+	client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	client_socket.connect((IP, PORT))
+	client_socket.setblocking(False)
+	print('Connected to server. Type "quit" to exit.')
+	print('-----------------------------------------')
 
-client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client_socket.connect((IP, PORT))
-client_socket.setblocking(False)
+	username = client_username.encode(FORMAT)
+	username_header = f"{len(username):<{HEADER_LENGTH}}".encode(FORMAT)
+	client_socket.send(username_header + username)
 
-username = client_username.encode(FORMAT)
-username_header = f"{len(username):<{HEADER_LENGTH}}".encode(FORMAT)
-client_socket.send(username_header + username)
+def sender():
+	global win
+	while True:
+		message = input("")
 
-while True:
-	message = input("Enter a message: ")
+		if message == EXITCOMMAND:
+			print(colored('Closed connection. Quitting...', 'blue', attrs=['bold']))
+			message = f"\b\b has left the server."
+			message = message.encode(FORMAT)
+			message_header = f"{len(message):<{HEADER_LENGTH}}".encode(FORMAT)
+			client_socket.send(message_header + message)
+			os_signals.send_signal('SIGKILL')
+		try:
+			message = message.encode(FORMAT)
+			message_header = f"{len(message):<{HEADER_LENGTH}}".encode(FORMAT)
+			client_socket.send(message_header + message)
+		except:
+			pass
 
-	if message:
-		message = message.encode(FORMAT)
-		message_header = f"{len(message):<{HEADER_LENGTH}}".encode(FORMAT)
-		client_socket.send(message_header + message)
+def receiver():
+	global win
+	while True:
+		try:
+			while True:
+				# receive messages
+				username_header = client_socket.recv(HEADER_LENGTH)
+				if not len(username_header):
+					print(colored('[SERVER] Server closed the connection.', 'yellow', attrs=['bold']))
+					os_signals.send_signal('SIGKILL')
 
-	try:
-		while True:
-			# receive messages
-			username_header = client_socket.recv(HEADER_LENGTH)
-			if not len(username_header):
-				print('[SERVER] Server closed the connection.')
-				sys.exit()
+				username_length = int(username_header.decode(FORMAT).strip())
+				username = client_socket.recv(username_length).decode(FORMAT)
 
-			username_lenght = int(username_lenght.decode(FORMAT).strip())
-			username = client_socket.recv(username_lenght).decode(FORMAT)
+				message_header = client_socket.recv(HEADER_LENGTH)
+				message_length = int(message_header.decode(FORMAT).strip())
+				message = client_socket.recv(message_length).decode(FORMAT)
 
-			message_header = client_socket.recv(HEADER_LENGTH)
-			message_length = int(message_header.decode(FORMAT).strip())
-			message = client_socket.recv(message_length).decode(FORMAT)
+				print(colored(f"{username}: {message}", 'green', attrs=['bold']))
 
-			prin(f"{username}: {message}")
+		except IOError as e:
+			if e.errno != errno.EAGAIN and e.errno != errno.EWOULDBLOCK:
+				print(colored('Reading error', str(e), 'red', attrs=['bold']))
+				os_signals.send_signal('SIGKILL')
+			continue
 
-	except IOError as e:
-		if e.errno != errno.EAGAIN and e.errno != errno.EWOULDBLOCK:
-			print('Reading error', str(e))
-			sys.exit()
-		continue
+		except Exception as e:
+			print(colored('General error', str(e), 'red', attrs=['bold']))
+			os_signals.send_signal('SIGKILL')
 
-	except Exception as e:
-		print('General error', str(e))
-		sys.exit()
+def resize_handler(signum, frame):
+	global win
+	win.update()
+
+signal(SIGWINCH, resize_handler)
+Thread(target=receiver).start()
+Thread(target=sender).start()
