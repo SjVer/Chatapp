@@ -21,7 +21,7 @@ if True:
 
 	try:
 		server.bind((IP, PORT))
-		print(f"[SERVER] Server bound. IP: {IP} port: {PORT}")
+		print(f"[SERVER] Server bound.\n  - IP: {IP}\n  - port: {PORT}")
 	except OSError:
 		print(f"[SERVER] Could not bind. Aborting...\n")
 		server.close()
@@ -92,4 +92,3 @@ while True:
 	for notified_socket in exception_sockets:
 		sockets_list.remove(notified_socket)
 		del clients[notified_socket]
-	

@@ -34,8 +34,8 @@ if True:
 	client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	client_socket.connect((IP, PORT))
 	client_socket.setblocking(False)
-	print('Connected to server. Type "quit" to exit.')
-	print('-----------------------------------------')
+	print(colored('Connected to server. Type "quit" to exit.', 'blue', attrs=['bold']))
+	print(colored('-----------------------------------------', 'blue', attrs=['bold']))
 
 	username = client_username.encode(FORMAT)
 	username_header = f"{len(username):<{HEADER_LENGTH}}".encode(FORMAT)
