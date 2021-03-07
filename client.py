@@ -14,6 +14,7 @@ if True:
 	HEADER_LENGTH = 64
 	FORMAT = 'utf-8'
 	EXITCOMMAND = 'quit'
+	CLOSESERVERCOMMAND = 'close-server'
 	#=====================
 
 	IP = input('Enter server IP: ')
@@ -31,9 +32,14 @@ if True:
 if True:
 	client_username = input('Enter username: ')
 
-	client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	client_socket.connect((IP, PORT))
-	client_socket.setblocking(False)
+	try:
+		client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		client_socket.connect((IP, PORT))
+		client_socket.setblocking(False)
+	except ConnectionRefusedError:
+		print(colored('Could not connect to server.', 'yellow', attrs=['bold']))
+		sys.exit()
+
 	print(colored('Connected to server. Type "quit" to exit.', 'blue', attrs=['bold']))
 	print(colored('-----------------------------------------', 'blue', attrs=['bold']))
 
@@ -53,6 +59,15 @@ def sender():
 			message_header = f"{len(message):<{HEADER_LENGTH}}".encode(FORMAT)
 			client_socket.send(message_header + message)
 			os_signals.send_signal('SIGKILL')
+
+		if message == CLOSESERVERCOMMAND:
+			print(colored('Closed the server. Quitting...', 'blue', attrs=['bold']))
+			message = f"\b\b has closed the server."
+			message = message.encode(FORMAT)
+			message_header = f"{len(message):<{HEADER_LENGTH}}".encode(FORMAT)
+			client_socket.send(message_header + message)
+			os_signals.send_signal('SIGKILL')
+
 		try:
 			message = message.encode(FORMAT)
 			message_header = f"{len(message):<{HEADER_LENGTH}}".encode(FORMAT)
@@ -79,6 +94,10 @@ def receiver():
 				message = client_socket.recv(message_length).decode(FORMAT)
 
 				print(colored(f"{username}: {message}", 'green', attrs=['bold']))
+
+				if message == ' has closed the server.':
+					print(colored('Server closed. Quitting...', 'blue', attrs=['bold']))
+					os_signals.send_signal('SIGKILL')
 
 		except IOError as e:
 			if e.errno != errno.EAGAIN and e.errno != errno.EWOULDBLOCK:

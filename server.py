@@ -12,6 +12,7 @@ if True:
 	HEADER_LENGTH = 64
 	FORMAT = 'utf-8'
 	EXITCOMMAND = 'quit'
+	CLOSESERVERCOMMAND = 'close-server'
 	#=====================
 
 	# server startup
@@ -19,11 +20,17 @@ if True:
 	server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
+	# get host name
+	dns = socket.gethostbyaddr(HOST)
+	hostnm = dns[0]
+
 	try:
-		server.bind((IP, PORT))
-		print(f"[SERVER] Server bound.\n  - IP: {IP}\n  - port: {PORT}")
-	except OSError:
-		print(f"[SERVER] Could not bind. Aborting...\n")
+		server.bind((HOST, PORT))
+		#server.bind((IP, PORT))
+		print(f"[SERVER] Server bound.\n  - hostname: {hostnm.ljust(10)}\n  - IP: {IP}\n  - port: {PORT}")
+	except OSError as e:
+		print(f"[SERVER] Could not bind. Aborting...")
+		print(f"[SERVER] Error: {e}\n")
 		server.close()
 		os.system('pkill -f ".py"')
 
@@ -88,6 +95,9 @@ while True:
 			for client_socket in clients:
 				if client_socket != notified_socket:
 					client_socket.send(user['header'] + user['content'] + message['header'] + message['content'])
+
+			if message['content'].decode(FORMAT) == ' has closed the server.':
+				sys.exit()
 
 	for notified_socket in exception_sockets:
 		sockets_list.remove(notified_socket)
